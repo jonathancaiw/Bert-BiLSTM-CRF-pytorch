@@ -2,7 +2,6 @@
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 def log_sum_exp(vec, m_size):
@@ -33,7 +32,7 @@ class CRF(nn.Module):
         for k in kwargs:
             self.__setattr__(k, kwargs[k])
         self.START_TAG_IDX, self.END_TAG_IDX = -2, -1
-        init_transitions = torch.zeros(self.target_size+2, self.target_size+2)
+        init_transitions = torch.zeros(self.target_size + 2, self.target_size + 2)
         init_transitions[:, self.START_TAG_IDX] = -1000.
         init_transitions[self.END_TAG_IDX, :] = -1000.
         if self.use_cuda:
@@ -75,13 +74,14 @@ class CRF(nn.Module):
                 batch_size, tag_size, 1).expand(batch_size, tag_size, tag_size)
             cur_partition = log_sum_exp(cur_values, tag_size)
             mask_idx = mask[idx, :].view(batch_size, 1).expand(batch_size, tag_size)
-            masked_cur_partition = cur_partition.masked_select(mask_idx.byte())
+            masked_cur_partition = cur_partition.masked_select(mask_idx.byte() == 1)
+
             if masked_cur_partition.dim() != 0:
                 mask_idx = mask_idx.contiguous().view(batch_size, tag_size, 1)
-                partition.masked_scatter_(mask_idx.byte(), masked_cur_partition)
+                partition.masked_scatter_(mask_idx.byte() == 1, masked_cur_partition)
         cur_values = self.transitions.view(1, tag_size, tag_size).expand(
             batch_size, tag_size, tag_size) + partition.contiguous().view(
-                batch_size, tag_size, 1).expand(batch_size, tag_size, tag_size)
+            batch_size, tag_size, 1).expand(batch_size, tag_size, tag_size)
         cur_partition = log_sum_exp(cur_values, tag_size)
         final_partition = cur_partition[:, self.END_TAG_IDX]
         return final_partition.sum(), scores
@@ -128,7 +128,7 @@ class CRF(nn.Module):
             partition, cur_bp = torch.max(cur_values, 1)
             partition_history.append(partition.unsqueeze(-1))
 
-            cur_bp.masked_fill_(mask[idx].view(batch_size, 1).expand(batch_size, tag_size), 0)
+            cur_bp.masked_fill_(mask[idx].view(batch_size, 1).expand(batch_size, tag_size) == 1, 0)
             back_points.append(cur_bp)
 
         partition_history = torch.cat(partition_history).view(
@@ -139,7 +139,7 @@ class CRF(nn.Module):
             partition_history, 1, last_position).view(batch_size, tag_size, 1)
 
         last_values = last_partition.expand(batch_size, tag_size, tag_size) + \
-            self.transitions.view(1, tag_size, tag_size).expand(batch_size, tag_size, tag_size)
+                      self.transitions.view(1, tag_size, tag_size).expand(batch_size, tag_size, tag_size)
         _, last_bp = torch.max(last_values, 1)
         pad_zero = Variable(torch.zeros(batch_size, tag_size)).long()
         if self.use_cuda:
@@ -159,7 +159,7 @@ class CRF(nn.Module):
         if self.use_cuda:
             decode_idx = decode_idx.cuda()
         decode_idx[-1] = pointer.data
-        for idx in range(len(back_points)-2, -1, -1):
+        for idx in range(len(back_points) - 2, -1, -1):
             pointer = torch.gather(back_points[idx], 1, pointer.contiguous().view(batch_size, 1))
             decode_idx[idx] = pointer.view(-1).data
         path_score = None
@@ -191,19 +191,19 @@ class CRF(nn.Module):
             if idx == 0:
                 new_tags[:, 0] = (tag_size - 2) * tag_size + tags[:, 0]
             else:
-                new_tags[:, idx] = tags[:, idx-1] * tag_size + tags[:, idx]
+                new_tags[:, idx] = tags[:, idx - 1] * tag_size + tags[:, idx]
 
         end_transition = self.transitions[:, self.END_TAG_IDX].contiguous().view(
             1, tag_size).expand(batch_size, tag_size)
         length_mask = torch.sum(mask, dim=1).view(batch_size, 1).long()
-        end_ids = torch.gather(tags, 1, length_mask-1)
+        end_ids = torch.gather(tags, 1, length_mask - 1)
 
         end_energy = torch.gather(end_transition, 1, end_ids)
 
         new_tags = new_tags.transpose(1, 0).contiguous().view(seq_len, batch_size, 1)
         tg_energy = torch.gather(scores.view(seq_len, batch_size, -1), 2, new_tags).view(
             seq_len, batch_size)
-        tg_energy = tg_energy.masked_select(mask.transpose(1, 0))
+        tg_energy = tg_energy.masked_select(mask.transpose(1, 0) == 1)
 
         gold_score = tg_energy.sum() + end_energy.sum()
 
@@ -223,7 +223,3 @@ class CRF(nn.Module):
         if self.average_batch:
             return (forward_score - gold_score) / batch_size
         return forward_score - gold_score
-
-
-
-

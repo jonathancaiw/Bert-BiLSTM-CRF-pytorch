@@ -1,4 +1,5 @@
 # coding=utf-8
+import torch
 
 
 class Config(object):
@@ -9,7 +10,7 @@ class Config(object):
         self.test_file = './data/test.txt'
         self.vocab = './data/bert/vocab.txt'
         self.max_length = 300
-        self.use_cuda = False
+        self.use_cuda = torch.cuda.is_available()
         self.gpu = 0
         self.batch_size = 50
         self.bert_path = './data/bert'
@@ -32,12 +33,10 @@ class Config(object):
             setattr(self, k, v)
 
     def __str__(self):
-
         return '\n'.join(['%s:%s' % item for item in self.__dict__.items()])
 
 
 if __name__ == '__main__':
-
     con = Config()
     con.update(gpu=8)
     print(con.gpu)
