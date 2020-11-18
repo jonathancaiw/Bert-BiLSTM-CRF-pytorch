@@ -97,12 +97,12 @@ def test():
     tagset_size = len(label_dic)
     dev_data = read_corpus(config.test_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab)
 
-    dev_ids = torch.LongTensor([temp.input_id for temp in dev_data])
-    dev_masks = torch.LongTensor([temp.input_mask for temp in dev_data])
-    dev_tags = torch.LongTensor([temp.label_id for temp in dev_data])
+    test_ids = torch.LongTensor([temp.input_id for temp in dev_data])
+    test_masks = torch.LongTensor([temp.input_mask for temp in dev_data])
+    test_tags = torch.LongTensor([temp.label_id for temp in dev_data])
 
-    dev_dataset = TensorDataset(dev_ids, dev_masks, dev_tags)
-    dev_loader = DataLoader(dev_dataset, shuffle=True, batch_size=config.batch_size)
+    test_dataset = TensorDataset(test_ids, test_masks, test_tags)
+    test_loader = DataLoader(test_dataset, batch_size=config.batch_size)
     model = BERT_LSTM_CRF(config.bert_path, tagset_size, config.bert_embedding, config.rnn_hidden, config.rnn_layer, dropout_ratio=config.dropout_ratio,
                           dropout1=config.dropout1, use_cuda=config.use_cuda)
 
@@ -113,7 +113,7 @@ def test():
     true = []
     pred = []
     length = 0
-    for i, batch in enumerate(dev_loader):
+    for i, batch in enumerate(test_loader):
         inputs, masks, tags = batch
         length += inputs.size(0)
         inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
