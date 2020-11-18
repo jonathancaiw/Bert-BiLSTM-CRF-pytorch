@@ -1,11 +1,10 @@
 # coding=utf-8
 # coding=utf-8
 import torch.nn as nn
-from pytorch_pretrained_bert import BertModel
+from pytorch_pretrained_bert.modeling import BertModel
 from model import CRF
 from torch.autograd import Variable
 import torch
-import ipdb
 
 
 class BERT_LSTM_CRF(nn.Module):
