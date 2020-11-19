@@ -1,6 +1,8 @@
 # coding=utf-8
 import torch
 
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
 class Config(object):
     def __init__(self):

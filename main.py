@@ -1,7 +1,6 @@
 # coding=utf-8
-import torch
 from torch.autograd import Variable
-from config import Config
+from config import *
 from model import BERT_LSTM_CRF
 import torch.optim as optim
 from utils import load_vocab, read_corpus, load_model, save_model
@@ -107,6 +106,7 @@ def test():
                           dropout1=config.dropout1, use_cuda=config.use_cuda)
 
     model = load_model(model, name=config.load_path)
+    model.to(DEVICE)
 
     model.eval()
     eval_loss = 0
