@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 def train(**kwargs):
     config = Config()
     config.update(**kwargs)
-    print('当前设置为:\n', config)
+    print('current config:\n', config)
     if config.use_cuda:
         torch.cuda.set_device(config.gpu)
     print('loading corpus')
