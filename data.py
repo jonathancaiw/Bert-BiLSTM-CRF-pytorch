@@ -12,7 +12,7 @@ def convert(filename, skip_o=True):
         for line in tqdm(f.readlines()):
             if line == '\n':
                 # 换行
-                append_x_y(x, y, chars, labels)
+                append_x_y(x, y, chars, labels, skip_o)
                 chars, labels = init_x_y()
             else:
                 chars.append(line[0])

@@ -2,11 +2,13 @@
 import torch
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
+TRAIN_SIZE = 0.9  # 训练数据占比
+DEV_SIZE = 0.05  # 验证数据占比
+TEST_SIZE = 0.05  # 测试数据占比
 
 class Config(object):
     def __init__(self):
-        self.label_file = './data/tag.txt'
+        self.label_file = './data/tag_c.txt'
         self.train_file = './data/train.txt'
         self.dev_file = './data/dev.txt'
         self.test_file = './data/test.txt'
