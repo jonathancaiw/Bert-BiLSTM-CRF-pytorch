@@ -127,6 +127,17 @@ def test():
         true.extend([t for t in tags])
     print('test  loss: {}'.format(eval_loss / length))
 
+    tag_to_label = {value: key for key, value in label_dic.items()}
+    for i in range(len(dev_data)):
+        for j in range(len(dev_data[i].input_id)):
+            if dev_data[i].input_id[j] == 0:
+                break
+
+        pred_labels = [tag_to_label[x.item()] for x in pred[i][:j]]
+        true_labels = [tag_to_label[x.item()] for x in true[i][:j]]
+        print('#%d pred: %s' % (i, pred_labels))
+        print('#%d true: %s' % (i, true_labels))
+
 
 if __name__ == '__main__':
     # train()
