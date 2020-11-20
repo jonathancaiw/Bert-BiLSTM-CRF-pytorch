@@ -1,21 +1,23 @@
 # coding=utf-8
 import torch
 
-DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+GPU = 0
+DEVICE = torch.device('cuda:%d' % GPU if torch.cuda.is_available() else 'cpu')
 TRAIN_SIZE = 0.9  # 训练数据占比
 DEV_SIZE = 0.05  # 验证数据占比
 TEST_SIZE = 0.05  # 测试数据占比
 
+
 class Config(object):
     def __init__(self):
-        self.label_file = './data/tag_c.txt'
+        self.label_file = './data/tag.txt'
         self.train_file = './data/train.txt'
         self.dev_file = './data/dev.txt'
         self.test_file = './data/test.txt'
         self.vocab = './data/bert/vocab.txt'
         self.max_length = 300
         self.use_cuda = torch.cuda.is_available()
-        self.gpu = 0
+        self.gpu = GPU
         self.batch_size = 50
         self.bert_path = './data/bert'
         self.rnn_hidden = 500

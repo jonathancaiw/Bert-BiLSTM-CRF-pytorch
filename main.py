@@ -6,6 +6,7 @@ import torch.optim as optim
 from utils import load_vocab, read_corpus, load_model, save_model
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
+from global_util import *
 
 
 def train(**kwargs):
@@ -18,8 +19,8 @@ def train(**kwargs):
     vocab = load_vocab(config.vocab)
     label_dic = load_vocab(config.label_file)
     tagset_size = len(label_dic)
-    train_data = read_corpus(config.train_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab)
-    dev_data = read_corpus(config.dev_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab)
+    train_data = read_corpus(config.train_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=False)
+    dev_data = read_corpus(config.dev_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=False)
 
     train_ids = torch.LongTensor([temp.input_id for temp in train_data])
     train_masks = torch.LongTensor([temp.input_mask for temp in train_data])
@@ -84,7 +85,7 @@ def dev(model, dev_loader, epoch, config):
         eval_loss += loss.item()
         pred.extend([t for t in best_path])
         true.extend([t for t in tags])
-    print('eval  epoch: {}|  loss: {}'.format(epoch, eval_loss / length))
+    write_log('eval  epoch: {}|  loss: {}'.format(epoch, eval_loss / length))
     model.train()
     return eval_loss
 
@@ -94,11 +95,11 @@ def test():
     vocab = load_vocab(config.vocab)
     label_dic = load_vocab(config.label_file)
     tagset_size = len(label_dic)
-    dev_data = read_corpus(config.test_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab)
+    test_data = read_corpus(config.test_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=False)
 
-    test_ids = torch.LongTensor([temp.input_id for temp in dev_data])
-    test_masks = torch.LongTensor([temp.input_mask for temp in dev_data])
-    test_tags = torch.LongTensor([temp.label_id for temp in dev_data])
+    test_ids = torch.LongTensor([temp.input_id for temp in test_data])
+    test_masks = torch.LongTensor([temp.input_mask for temp in test_data])
+    test_tags = torch.LongTensor([temp.label_id for temp in test_data])
 
     test_dataset = TensorDataset(test_ids, test_masks, test_tags)
     test_loader = DataLoader(test_dataset, batch_size=config.batch_size)
@@ -125,18 +126,22 @@ def test():
         eval_loss += loss.item()
         pred.extend([t for t in best_path])
         true.extend([t for t in tags])
-    print('test  loss: {}'.format(eval_loss / length))
+    write_log('test loss: {}'.format(eval_loss / length))
 
+    preidct(label_dic, test_data, true, pred)
+
+
+def preidct(label_dic, test_data, true, pred):
     tag_to_label = {value: key for key, value in label_dic.items()}
-    for i in range(len(dev_data)):
-        for j in range(len(dev_data[i].input_id)):
-            if dev_data[i].input_id[j] == 0:
+    for i in range(len(test_data)):
+        for j in range(len(test_data[i].input_id)):
+            if test_data[i].input_id[j] == 0:
                 break
 
-        pred_labels = [tag_to_label[x.item()] for x in pred[i][:j]]
         true_labels = [tag_to_label[x.item()] for x in true[i][:j]]
-        print('#%d pred: %s' % (i, pred_labels))
-        print('#%d true: %s' % (i, true_labels))
+        pred_labels = [tag_to_label[x.item()] for x in pred[i][:j]]
+        write_log('#%d true: %s' % (i, true_labels))
+        write_log('#%d pred: %s' % (i, pred_labels))
 
 
 if __name__ == '__main__':

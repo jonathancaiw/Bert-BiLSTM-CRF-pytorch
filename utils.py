@@ -2,7 +2,7 @@
 import torch
 import os
 import datetime
-import unicodedata
+from data import *
 
 
 class InputFeatures(object):
@@ -12,8 +12,10 @@ class InputFeatures(object):
         self.input_mask = input_mask
 
 
-def load_vocab(vocab_file):
+def load_vocab(vocab_file, user_define=False):
     """Loads a vocabulary file into a dictionary."""
+    if user_define:
+        vocab_file = './data/tag_c.txt'
     vocab = {}
     index = 0
     with open(vocab_file, "r", encoding="utf-8") as reader:
@@ -27,13 +29,16 @@ def load_vocab(vocab_file):
     return vocab
 
 
-def read_corpus(path, max_length, label_dic, vocab):
+def read_corpus(path, max_length, label_dic, vocab, user_define=False):
     """
     :param path:数据文件路径
     :param max_length: 最大长度
     :param label_dic: 标签字典
     :return:
     """
+    if user_define:
+        return read_my_corpus(path, max_length, label_dic, vocab)
+
     file = open(path, encoding='utf-8')
     content = file.readlines()
     file.close()
@@ -42,10 +47,40 @@ def read_corpus(path, max_length, label_dic, vocab):
         text, label = line.strip().split('|||')
         tokens = text.split()
         label = label.split()
-        if len(tokens) > max_length-2:
-            tokens = tokens[0:(max_length-2)]
-            label = label[0:(max_length-2)]
-        tokens_f =['[CLS]'] + tokens + ['[SEP]']
+        if len(tokens) > max_length - 2:
+            tokens = tokens[0:(max_length - 2)]
+            label = label[0:(max_length - 2)]
+        tokens_f = ['[CLS]'] + tokens + ['[SEP]']
+        label_f = ["<start>"] + label + ['<eos>']
+        input_ids = [int(vocab[i]) if i in vocab else int(vocab['[UNK]']) for i in tokens_f]
+        label_ids = [label_dic[i] for i in label_f]
+        input_mask = [1] * len(input_ids)
+        while len(input_ids) < max_length:
+            input_ids.append(0)
+            input_mask.append(0)
+            label_ids.append(label_dic['<pad>'])
+        assert len(input_ids) == max_length
+        assert len(input_mask) == max_length
+        assert len(label_ids) == max_length
+        feature = InputFeatures(input_id=input_ids, input_mask=input_mask, label_id=label_ids)
+        result.append(feature)
+    return result
+
+
+def read_my_corpus(path, max_length, label_dic, vocab):
+    paths = path.split('/')
+    filenames = paths[-1].split('.')
+    paths[-1] = filenames[0] + '_c.pt'
+    filename = '/'.join(paths)
+    x, y = torch.load(filename)
+
+    result = []
+    for i in range(len(x)):
+        tokens, label = x[i], y[i]
+        if len(tokens) > max_length - 2:
+            tokens = tokens[0:(max_length - 2)]
+            label = label[0:(max_length - 2)]
+        tokens_f = ['[CLS]'] + tokens + ['[SEP]']
         label_f = ["<start>"] + label + ['<eos>']
         input_ids = [int(vocab[i]) if i in vocab else int(vocab['[UNK]']) for i in tokens_f]
         label_ids = [label_dic[i] for i in label_f]
@@ -91,10 +126,8 @@ def load_model(model, path='result', **kwargs):
             content = file.read().strip()
             name = os.path.join(path, content)
     else:
-        name=kwargs['name']
-        name = os.path.join(path,name)
+        name = kwargs['name']
+        name = os.path.join(path, name)
     model.load_state_dict(torch.load(name, map_location=lambda storage, loc: storage))
     print('load model {} successfully'.format(name))
     return model
-
-
