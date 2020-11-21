@@ -1,5 +1,6 @@
 # coding=utf-8
 from torch.autograd import Variable
+from tqdm import tqdm
 from config import *
 from model import BERT_LSTM_CRF
 import torch.optim as optim
@@ -7,6 +8,10 @@ from utils import load_vocab, read_corpus, load_model, save_model
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
 from global_util import *
+from confusion_matrix import *
+
+USER_DEFINE = False
+PRINT_COUNT = 5
 
 
 def train(**kwargs):
@@ -17,10 +22,10 @@ def train(**kwargs):
         torch.cuda.set_device(config.gpu)
     print('loading corpus')
     vocab = load_vocab(config.vocab)
-    label_dic = load_vocab(config.label_file)
+    label_dic = load_vocab(config.label_file, user_define=USER_DEFINE)
     tagset_size = len(label_dic)
-    train_data = read_corpus(config.train_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=False)
-    dev_data = read_corpus(config.dev_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=False)
+    train_data = read_corpus(config.train_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=USER_DEFINE)
+    dev_data = read_corpus(config.dev_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=USER_DEFINE)
 
     train_ids = torch.LongTensor([temp.input_id for temp in train_data])
     train_masks = torch.LongTensor([temp.input_mask for temp in train_data])
@@ -48,7 +53,7 @@ def train(**kwargs):
     eval_loss = 10000
     for epoch in range(config.base_epoch):
         step = 0
-        for i, batch in enumerate(train_loader):
+        for i, batch in enumerate(tqdm(train_loader)):
             step += 1
             model.zero_grad()
             inputs, masks, tags = batch
@@ -73,7 +78,7 @@ def dev(model, dev_loader, epoch, config):
     true = []
     pred = []
     length = 0
-    for i, batch in enumerate(dev_loader):
+    for i, batch in enumerate(tqdm(dev_loader)):
         inputs, masks, tags = batch
         length += inputs.size(0)
         inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
@@ -93,9 +98,9 @@ def dev(model, dev_loader, epoch, config):
 def test():
     config = Config()
     vocab = load_vocab(config.vocab)
-    label_dic = load_vocab(config.label_file)
+    label_dic = load_vocab(config.label_file, user_define=USER_DEFINE)
     tagset_size = len(label_dic)
-    test_data = read_corpus(config.test_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=False)
+    test_data = read_corpus(config.test_file, max_length=config.max_length, label_dic=label_dic, vocab=vocab, user_define=USER_DEFINE)
 
     test_ids = torch.LongTensor([temp.input_id for temp in test_data])
     test_masks = torch.LongTensor([temp.input_mask for temp in test_data])
@@ -114,7 +119,7 @@ def test():
     true = []
     pred = []
     length = 0
-    for i, batch in enumerate(test_loader):
+    for i, batch in enumerate(tqdm(test_loader)):
         inputs, masks, tags = batch
         length += inputs.size(0)
         inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
@@ -128,22 +133,55 @@ def test():
         true.extend([t for t in tags])
     write_log('test loss: {}'.format(eval_loss / length))
 
-    preidct(label_dic, test_data, true, pred)
+    statistics(label_dic, test_data, true, pred)
 
 
-def preidct(label_dic, test_data, true, pred):
+def statistics(label_dic, test_data, true, pred):
     tag_to_label = {value: key for key, value in label_dic.items()}
-    for i in range(len(test_data)):
+
+    mismatch = 0
+    total = 0
+    len_categories = len(tag_to_label)
+
+    tp_list = numpy.zeros(len_categories, dtype=int)
+    fn_list = numpy.zeros(len_categories, dtype=int)
+    fp_list = numpy.zeros(len_categories, dtype=int)
+    tn_list = numpy.zeros(len_categories, dtype=int)
+
+    for i in tqdm(range(len(test_data))):
         for j in range(len(test_data[i].input_id)):
             if test_data[i].input_id[j] == 0:
                 break
 
-        true_labels = [tag_to_label[x.item()] for x in true[i][:j]]
-        pred_labels = [tag_to_label[x.item()] for x in pred[i][:j]]
-        write_log('#%d true: %s' % (i, true_labels))
-        write_log('#%d pred: %s' % (i, pred_labels))
+        p = pred[i][:j]
+        y = true[i][:j]
+
+        total += 1
+
+        tp, fn, fp, tn = get_confusion_matrices(tag_to_label, y, p)
+        tp_list += tp
+        fn_list += fn
+        fp_list += fp
+        tn_list += tn
+
+        for j in range(len(p)):
+            if not p[j] == y[j]:
+                mismatch += 1
+                break
+
+        if total < PRINT_COUNT:
+            true_labels = [tag_to_label[x.item()] for x in y]
+            pred_labels = [tag_to_label[x.item()] for x in p]
+            write_log('#%d true: %s' % (i, true_labels))
+            write_log('#%d pred: %s' % (i, pred_labels))
+
+    accuracy = (total - mismatch) / total
+    write_log('Accuracy: match %d, mismatch %d, total %d, accuracy %.4f' % (
+        total - mismatch, mismatch, total, accuracy))
+
+    get_evaluation_metrics(tag_to_label, tp_list, fn_list, fp_list, tn_list)
 
 
 if __name__ == '__main__':
-    # train()
-    test()
+    train()
+    # test()
