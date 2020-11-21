@@ -45,7 +45,7 @@ def train(**kwargs):
         assert config.load_path is not None
         model = load_model(model, name=config.load_path)
     if config.use_cuda:
-        model.cuda()
+        model.to(DEVICE)
     model.train()
     optimizer = getattr(optim, config.optim)
     optimizer = optimizer(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
@@ -58,7 +58,7 @@ def train(**kwargs):
             inputs, masks, tags = batch
             inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
             if config.use_cuda:
-                inputs, masks, tags = inputs.cuda(), masks.cuda(), tags.cuda()
+                inputs, masks, tags = inputs.to(DEVICE), masks.to(DEVICE), tags.to(DEVICE)
             feats = model(inputs, masks)
             loss = model.loss(feats, masks, tags)
             loss.backward()
@@ -82,7 +82,7 @@ def dev(model, dev_loader, epoch, config):
         length += inputs.size(0)
         inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
         if config.use_cuda:
-            inputs, masks, tags = inputs.cuda(), masks.cuda(), tags.cuda()
+            inputs, masks, tags = inputs.to(DEVICE), masks.to(DEVICE), tags.to(DEVICE)
         feats = model(inputs, masks)
         path_score, best_path = model.crf(feats, masks.byte())
         loss = model.loss(feats, masks, tags)
@@ -123,7 +123,7 @@ def test():
         length += inputs.size(0)
         inputs, masks, tags = Variable(inputs), Variable(masks), Variable(tags)
         if config.use_cuda:
-            inputs, masks, tags = inputs.cuda(), masks.cuda(), tags.cuda()
+            inputs, masks, tags = inputs.to(DEVICE), masks.to(DEVICE), tags.to(DEVICE)
         feats = model(inputs, masks)
         path_score, best_path = model.crf(feats, masks.byte())
         loss = model.loss(feats, masks, tags)
