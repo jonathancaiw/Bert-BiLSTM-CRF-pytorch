@@ -7,8 +7,7 @@ import torch.optim as optim
 from utils import load_vocab, read_corpus, load_model, save_model
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
-from global_util import *
-from confusion_matrix import *
+from statistics import *
 
 USER_DEFINE = False
 PRINT_COUNT = 5
@@ -133,10 +132,10 @@ def test():
         true.extend([t for t in tags])
     write_log('test loss: {}'.format(eval_loss / length))
 
-    statistics(label_dic, test_data, true, pred)
+    print_statistics(label_dic, test_data, true, pred)
 
 
-def statistics(label_dic, test_data, true, pred):
+def print_statistics(label_dic, test_data, true, pred):
     tag_to_label = {value: key for key, value in label_dic.items()}
 
     mismatch = 0
