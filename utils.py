@@ -1,8 +1,11 @@
 # coding=utf-8
-import torch
-import os
 import datetime
+import os
+import sys
 from data import *
+
+sys.path.append("../..")
+from global_util import *
 
 
 class InputFeatures(object):
@@ -114,7 +117,7 @@ def save_model(model, epoch, path='result', **kwargs):
         name = cur_time + '--epoch:{}'.format(epoch)
         full_name = os.path.join(path, name)
         torch.save(model.state_dict(), full_name)
-        print('Saved model at epoch {} successfully'.format(epoch))
+        write_log('Saved model at epoch {} successfully {} '.format(epoch, full_name))
         with open('{}/checkpoint'.format(path), 'w') as file:
             file.write(name)
             print('Write to checkpoint')
